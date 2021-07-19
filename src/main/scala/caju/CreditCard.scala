@@ -10,22 +10,22 @@ import scala.util.{Failure, Success}
 
 object CreditCard {
 
-  final case object NotFound extends Cmd
+  private object NotFound extends Cmd
 
   /** Time To Die */
-  private case object TTD extends Cmd
+  private object TTD extends Cmd
 
   private case class AccountInto(account: Account) extends Cmd
 
   final case class Authorize(mcc: Int, transaction: Transaction, replyTo: ActorRef[TransactionResponse]) extends Cmd
 
-  final case class RepositoryFailure(cause: Throwable) extends Cmd
+  private case class RepositoryFailure(cause: Throwable) extends Cmd
 
   private case class UpdateFailure(cause: Throwable, authorize: Authorize) extends Cmd
 
   private case class UpdateSuccess(authorize: Authorize) extends Cmd
 
-  def apply(repository: AccountRepository, account: String, limit: Int, ttl: FiniteDuration): Behavior[Cmd] = Behaviors.withStash(limit) { buffer =>
+  def apply(repository: AccountRepository, account: String, bufferLimit: Int, ttl: FiniteDuration): Behavior[Cmd] = Behaviors.withStash(bufferLimit) { buffer =>
     Behaviors.setup { ctx =>
       Behaviors.withTimers { timers =>
         new CreditCard(repository, account, ctx, buffer, timers, ttl).start()
@@ -134,6 +134,7 @@ class CreditCard(
   }
 
   private def load(): Unit = {
+    timers.startSingleTimer(TTD, ttl)
     ctx.pipeToSelf(repository.get(accountCode)) {
       case Success(opt) => opt match {
         case Some(info) => AccountInto(info)
@@ -145,7 +146,6 @@ class CreditCard(
 
   private def start(): Behavior[Cmd] = {
     load()
-    timers.startSingleTimer(TTD, ttl)
     waitInfo
   }
 }
