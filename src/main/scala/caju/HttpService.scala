@@ -8,7 +8,8 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives._
 import akka.util.Timeout
-import caju.CreditCardManager.{ApprovedT, ProcessTransaction, RejectedT}
+import caju.CreditCard.{Approved, Failed, Rejected}
+import caju.CreditCardManager.Authorize
 import caju.protocol._
 
 import scala.concurrent.Future
@@ -36,15 +37,20 @@ object HttpService {
           post {
             entity(as[Transaction]) { transaction =>
 
-              onComplete(manager.ask(ProcessTransaction(transaction, _))) {
+              onComplete(manager.ask(Authorize(transaction, _))) {
                 case Success(response) => response match {
-                  case ApprovedT => complete(ApprovedTranscation)
-                  case RejectedT => complete(RejectedTransaction)
+                  case _: Approved => complete(ApprovedTranscation)
+                  case _: Rejected => complete(RejectedTransaction)
+                  case Failed(cause, _, _) =>
+                    extractLog { log =>
+                      log.error(cause, "Transaction has failed!")
+                      complete(FailedTranscation)
+                    }
                 }
 
                 case Failure(cause) =>
                   extractLog { log =>
-                    log.error(cause, "Transaction has failed!", cause)
+                    log.error(cause, "Transaction has failed!")
                     complete(FailedTranscation)
                   }
               }

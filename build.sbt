@@ -17,9 +17,13 @@ lazy val root = (project in file("."))
       "com.typesafe.akka" %% "akka-http-spray-json" % AkkaHttpVersion,
 
       "org.scalatest" %% "scalatest" % "3.2.9" % "test",
+      "com.whisk" %% "docker-testkit-scalatest" % "0.9.9" % "test",
+      "com.whisk" %% "docker-testkit-impl-spotify" % "0.9.9" % "test",
+      "org.scalamock" %% "scalamock" % "5.1.0" % "test",
 
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-      "ch.qos.logback" % "logback-classic" % "1.2.3"
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
     )
   )
   .enablePlugins(JavaAppPackaging)

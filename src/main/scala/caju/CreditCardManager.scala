@@ -6,17 +6,9 @@ import caju.protocol.Transaction
 
 object CreditCardManager {
 
-  case object ApprovedT extends TransactionResponse
-
-  case object RejectedT extends TransactionResponse
-
-  final case class FailedT(cause: Throwable) extends TransactionResponse
-
-  case class ProcessTransaction(transaction: Transaction, replyTo: ActorRef[TransactionResponse]) extends Cmd
+  case class Authorize(transaction: Transaction, replyTo: ActorRef[CreditCard.AuthorizeResponse]) extends Cmd
 
   def apply(): Behavior[Cmd] = Behaviors.setup(new CreditCardManager(_))
-
-  sealed trait TransactionResponse
 
   sealed trait Cmd
 }
@@ -26,10 +18,10 @@ import caju.CreditCardManager._
 class CreditCardManager(ctx: ActorContext[Cmd]) extends AbstractBehavior[Cmd](ctx) {
 
   override def onMessage(cmd: Cmd): Behavior[Cmd] = cmd match {
-    case process: ProcessTransaction => processTransaction(process)
+    case process: Authorize => processTransaction(process)
   }
 
-  protected def processTransaction(process: ProcessTransaction): Behavior[Cmd] = {
+  protected def processTransaction(process: Authorize): Behavior[Cmd] = {
     ???
   }
 }

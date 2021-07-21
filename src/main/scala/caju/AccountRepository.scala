@@ -32,6 +32,15 @@ object Account {
 
 import caju.Account._
 
+/**
+ * Todos os valores aqui são representados em centavos.
+ *
+ * @param code
+ * @param meal
+ * @param food
+ * @param culture
+ * @param cash
+ */
 case class Account(code: String, meal: Int, food: Int, culture: Int, cash: Int) {
 
   def minus(amount: Int, mcc: Int): Option[Account] = {
@@ -60,5 +69,5 @@ trait AccountRepository {
 
   def get(accountCode: String): Future[Option[Account]]
 
-  def save(account: Account): Future[Unit]
+  def save(account: Account): Future[Account]
 }

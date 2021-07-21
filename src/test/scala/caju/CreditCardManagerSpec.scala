@@ -2,7 +2,7 @@ package caju
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 
-class CreditCardManagerSpec extends ScalaTestWithActorTestKit with Spec {
+class CreditCardManagerSpec extends ScalaTestWithActorTestKit with SpecLike {
 
   "Hello" - {
     "Some" in {
