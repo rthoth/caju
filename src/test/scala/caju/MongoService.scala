@@ -14,7 +14,11 @@ trait MongoService extends DockerTestKit with DockerKitSpotify {
     .withPorts(MongoPort -> None)
     .withReadyChecker(DockerReadyChecker.LogLineContains("Waiting for connections"))
 
-  lazy val accountRepository = new MongoAccountRepository(s"mongodb://localhost:$mongoPort")
+  lazy val mongo = new Mongo(s"mongodb://localhost:$mongoPort")
+
+  lazy val accountRepository: MongoAccountRepository = mongo.accountRepository
+
+  lazy val merchantRepository: MongoMerchantRepository = mongo.merchantRepository
 
   abstract override def dockerContainers: List[DockerContainer] = mongoContainer :: super.dockerContainers
 

@@ -65,6 +65,13 @@ case class Account(code: String, meal: Int, food: Int, culture: Int, cash: Int) 
   }
 }
 
+case class Merchant(name: String, location: String, mcc: Int)
+
+trait MerchantRepository {
+
+  def search(name: String, location: String): Future[Option[Merchant]]
+}
+
 trait AccountRepository {
 
   def get(accountCode: String): Future[Option[Account]]
