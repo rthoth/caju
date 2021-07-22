@@ -1,7 +1,7 @@
 package caju
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import caju.CreditCard.{Approved, Authorize, AuthorizeResponse, Failed, Rejected}
+import caju.CreditCard.{Approved, Authorize, Response, Failed, Rejected}
 import caju.protocol.Transaction
 import org.scalamock.scalatest.MockFactory
 
@@ -15,7 +15,7 @@ class BasicCreditCardSpec extends CreditCardSpec {
   "When a valid FOOD transaction arrives" - {
     "actor should to return ApprovedT" in {
       wait(accountRepository.save(Account("0192837465", 0, 10000, 0, 5000)))
-      val probe = testKit.createTestProbe[AuthorizeResponse]
+      val probe = testKit.createTestProbe[Response]
       val actor = testKit.spawn(CreditCard(accountRepository, "0192837465", 10, 100.millis))
       actor ! CreditCard.Authorize(5411, Transaction("0192837465", 100, "5411", merchant = "XXX"), probe.ref)
       probe.expectMessageType[Approved]
@@ -25,7 +25,7 @@ class BasicCreditCardSpec extends CreditCardSpec {
   "When a insufficient CULTURE arrives" - {
     "actor should to decrease from CASH" in {
       wait(accountRepository.save(Account("123456789", meal = 10000, food = 100000, culture = 5000, cash = 30000)))
-      val probe = testKit.createTestProbe[AuthorizeResponse]
+      val probe = testKit.createTestProbe[Response]
       val actor = testKit.spawn(CreditCard(accountRepository, "123456789", 10, 100.millis))
       actor ! CreditCard.Authorize(5815, Transaction("123456789", 100, "5815", merchant = "CINECLUB Stanley Kubrick BELEM PA"), probe.ref)
       probe.expectMessageType[Approved]
@@ -42,7 +42,7 @@ class BasicCreditCardSpec extends CreditCardSpec {
   "When a totally insufficient FOOD arrives" - {
     "actor should to return Rejected" in {
       wait(accountRepository.save(Account("987654321", meal = 1000, food = 1000, culture = 1000, cash = 1000)))
-      val probe = testKit.createTestProbe[AuthorizeResponse]
+      val probe = testKit.createTestProbe[Response]
       val actor = testKit.spawn(CreditCard(accountRepository, "987654321", 10, 100.millis))
       actor ! CreditCard.Authorize(5411, Transaction("987654321", 10.01, "5411", "SUPERMKT YOYO TOKYO JP"), probe.ref)
       probe.expectMessageType[Rejected]
@@ -58,7 +58,7 @@ class BasicCreditCardSpec extends CreditCardSpec {
 
   "When a credit card was not found" - {
     "actor should to return FailedT" in {
-      val probe = testKit.createTestProbe[AuthorizeResponse]
+      val probe = testKit.createTestProbe[Response]
       val actor = testKit.spawn(CreditCard(accountRepository, "caju", 10, 1000.millis))
       actor ! CreditCard.Authorize(455, Transaction("caju", 12.34, "4558", "PADARIA DO SEU João   CARAGUATATUBA SP"), probe.ref)
       val failed = probe.expectMessageType[Failed]
@@ -73,7 +73,7 @@ class BasicCreditCardSpec extends CreditCardSpec {
       val actor = testKit.spawn(CreditCard(accountRepository, "777", 10, 100.millis))
 
       val probes = for (i <- 0 until 12) yield {
-        val probe = testKit.createTestProbe[AuthorizeResponse]
+        val probe = testKit.createTestProbe[Response]
         actor ! CreditCard.Authorize(5813, Transaction("777", 1, "5813", merchant = s"SUPERMKT $i C$i SP"), probe.ref)
         Thread.sleep(5)
         probe
@@ -107,7 +107,7 @@ class BasicCreditCardSpec extends CreditCardSpec {
         Future.failed(new IOException("!!!"))
       )
 
-      val probe = testKit.createTestProbe[AuthorizeResponse]
+      val probe = testKit.createTestProbe[Response]
       val actor = testKit.spawn(CreditCard(repository, "741852963", 10, 100.millis))
 
       actor ! Authorize(5813, Transaction("741852963", 10, "5813", "YOUTUBE   SP SP"), probe.ref)

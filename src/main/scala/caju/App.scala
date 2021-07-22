@@ -4,6 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.StrictLogging
 
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 object App extends scala.App with StrictLogging {
@@ -15,7 +16,10 @@ object App extends scala.App with StrictLogging {
     val system = ctx.system
     val config = system.settings.config
 
-    val manager = ctx.spawn(CreditCardManager(), "credit-card-manager")
+    val authorizer = CreditCard(Mongo(ctx.system).accountRepository, _, 100, 200.millis)
+    val resolver = ctx.spawn(MCCResolver.pool(Mongo(ctx.system).merchantRepository), "mcc-resolver")
+
+    val manager = ctx.spawn(CreditCardManager(authorizer, resolver), "credit-card-manager")
 
     val httpReplyTo = ctx.spawnAnonymous(Behaviors.receive[HttpService.Message] { (ctx, message) =>
       message match {

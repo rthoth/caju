@@ -23,7 +23,7 @@ object HttpService {
   def apply(
     hostname: String,
     port: Int,
-    manager: ActorRef[CreditCardManager.Cmd],
+    manager: ActorRef[CreditCardManager.Message],
     replyTo: ActorRef[Message]
   ): Behavior[Message] = Behaviors.setup { ctx =>
 
@@ -41,7 +41,7 @@ object HttpService {
                 case Success(response) => response match {
                   case _: Approved => complete(ApprovedTranscation)
                   case _: Rejected => complete(RejectedTransaction)
-                  case Failed(cause, _, _) =>
+                  case Failed(cause, _) =>
                     extractLog { log =>
                       log.error(cause, "Transaction has failed!")
                       complete(FailedTranscation)

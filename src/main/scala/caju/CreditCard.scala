@@ -9,31 +9,31 @@ import scala.util.{Failure, Success}
 
 object CreditCard {
 
-  private object NotFound extends Cmd
+  private object NotFound extends Message
 
   /** Time To Die */
-  private object TTD extends Cmd
+  private object TTD extends Message
 
-  private case class AccountWrapper(account: Account) extends Cmd
+  private case class AccountWrapper(account: Account) extends Message
 
-  final case class Approved(mcc: Int, transaction: Transaction) extends AuthorizeResponse
+  final case class Approved(mcc: Int, transaction: Transaction) extends Response
 
-  final case class Authorize(mcc: Int, transaction: Transaction, replyTo: ActorRef[AuthorizeResponse]) extends Cmd {
+  final case class Authorize(mcc: Int, transaction: Transaction, replyTo: ActorRef[Response]) extends Message {
 
     def account: String = transaction.account
   }
 
-  final case class Failed(cause: Throwable, mcc: Int, transaction: Transaction) extends AuthorizeResponse
+  final case class Failed(cause: Throwable, transaction: Transaction) extends Response
 
-  final case class Rejected(mcc: Int, transaction: Transaction) extends AuthorizeResponse
+  final case class Rejected(mcc: Int, transaction: Transaction) extends Response
 
-  private case class RepositoryFailure(cause: Throwable) extends Cmd
+  private case class RepositoryFailure(cause: Throwable) extends Message
 
-  private case class UpdateFailure(cause: Throwable, authorize: Authorize) extends Cmd
+  private case class UpdateFailure(cause: Throwable, authorize: Authorize) extends Message
 
-  private case class UpdateSuccess(authorize: Authorize) extends Cmd
+  private case class UpdateSuccess(authorize: Authorize) extends Message
 
-  def apply(repository: AccountRepository, account: String, bufferLimit: Int, ttl: FiniteDuration): Behavior[Cmd] = Behaviors.withStash(bufferLimit) { buffer =>
+  def apply(repository: AccountRepository, account: String, bufferLimit: Int, ttl: FiniteDuration): Behavior[Message] = Behaviors.withStash(bufferLimit) { buffer =>
     Behaviors.setup { ctx =>
       Behaviors.withTimers { timers =>
         new CreditCard(repository, account, ctx, buffer, timers, ttl).start()
@@ -41,9 +41,9 @@ object CreditCard {
     }
   }
 
-  sealed trait AuthorizeResponse
+  sealed trait Response
 
-  sealed trait Cmd
+  sealed trait Message
 
 }
 
@@ -52,19 +52,19 @@ import caju.CreditCard._
 class CreditCard(
   repository: AccountRepository,
   code: String,
-  ctx: ActorContext[Cmd],
-  buffer: StashBuffer[Cmd],
-  scheduler: TimerScheduler[Cmd],
+  ctx: ActorContext[Message],
+  buffer: StashBuffer[Message],
+  scheduler: TimerScheduler[Message],
   ttl: FiniteDuration
 ) {
 
   private var shouldToDie = false
 
-  def start(): Behavior[Cmd] = {
+  def start(): Behavior[Message] = {
     waitNextAuthorize()
   }
 
-  private def execute(account: Account): Behavior[Cmd] = {
+  private def execute(account: Account): Behavior[Message] = {
     stopTTL()
 
     Behaviors.receiveMessage {
@@ -90,12 +90,12 @@ class CreditCard(
     }
   }
 
-  private def fail(authorize: Authorize, cause: Throwable, behavior: Behavior[Cmd]): Behavior[Cmd] = {
-    authorize.replyTo ! Failed(cause, authorize.mcc, authorize.transaction)
+  private def fail(authorize: Authorize, cause: Throwable, behavior: Behavior[Message]): Behavior[Message] = {
+    authorize.replyTo ! Failed(cause, authorize.transaction)
     behavior
   }
 
-  private def fetchAccount(): Behavior[Cmd] = {
+  private def fetchAccount(): Behavior[Message] = {
     startTTL()
     ctx.pipeToSelf(repository.get(code)) {
       case Success(Some(account)) => AccountWrapper(account)
@@ -109,7 +109,7 @@ class CreditCard(
   @inline
   private def log = ctx.log
 
-  private def reportRepositoryFailure(cause: Throwable): Behavior[Cmd] = Behaviors.receiveMessage {
+  private def reportRepositoryFailure(cause: Throwable): Behavior[Message] = Behaviors.receiveMessage {
     case authorize: Authorize =>
       fail(authorize, cause, waitNextAuthorize())
     case _ =>
@@ -121,7 +121,7 @@ class CreditCard(
     scheduler.startSingleTimer(TTD, ttl)
   }
 
-  private def stash(authorize: Authorize, behavior: Behavior[Cmd]): Behavior[Cmd] = {
+  private def stash(authorize: Authorize, behavior: Behavior[Message]): Behavior[Message] = {
     if (authorize.account == code) {
       if (!buffer.isFull) {
         buffer.stash(authorize)
@@ -139,7 +139,7 @@ class CreditCard(
     scheduler.cancel(TTD)
   }
 
-  private def timeToDie(cause: Throwable): Behavior[Cmd] = {
+  private def timeToDie(cause: Throwable): Behavior[Message] = {
     if (shouldToDie) {
       unstash(Behaviors.receiveMessage {
         case authorize: Authorize =>
@@ -157,11 +157,11 @@ class CreditCard(
     }
   }
 
-  private def unstash(behavior: Behavior[Cmd]): Behavior[Cmd] = {
+  private def unstash(behavior: Behavior[Message]): Behavior[Message] = {
     buffer.unstash(behavior, 1, identity)
   }
 
-  private def waitAccount(): Behavior[Cmd] = Behaviors.receiveMessage {
+  private def waitAccount(): Behavior[Message] = Behaviors.receiveMessage {
     case authorize: Authorize =>
       stash(authorize, Behaviors.same)
 
@@ -178,7 +178,7 @@ class CreditCard(
       timeToDie(new CajuException.NotFound(code))
   }
 
-  private def waitNextAuthorize(): Behavior[Cmd] = {
+  private def waitNextAuthorize(): Behavior[Message] = {
     startTTL()
     Behaviors.receiveMessage {
       case authorize: Authorize =>
@@ -189,7 +189,7 @@ class CreditCard(
     }
   }
 
-  private def waitUpdate(): Behavior[Cmd] = Behaviors.receiveMessage {
+  private def waitUpdate(): Behavior[Message] = Behaviors.receiveMessage {
     case UpdateSuccess(Authorize(mcc, transaction, replyTo)) =>
       replyTo ! Approved(mcc, transaction)
       log.info("Approved: {} {} {} {}.", code, transaction.totalAmount, mcc, transaction.merchant)

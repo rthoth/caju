@@ -1,0 +1,18 @@
+<configuration>
+
+    <appender name="file" class="ch.qos.logback.core.FileAppender">
+        <file>target/test-log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="TRACE">
+        <appender-ref ref="file" />
+    </root>
+
+    <logger name="com.spotify.docker" level="OFF" />
+    <logger name="akka.event" level="OFF" />
+    <logger name="org.mongodb" level="OFF" />
+</configuration>
