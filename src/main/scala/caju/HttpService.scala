@@ -76,7 +76,7 @@ object HttpService {
             post {
               entity(as[Account]) { account =>
                 onComplete(accountRepo.save(account)) {
-                  case Success(savedAccount) => complete(savedAccount)
+                  case Success(_) => complete(account)
                   case Failure(cause) =>
                     extractLog { log =>
                       log.error("It was impossible save/update!", cause)

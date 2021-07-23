@@ -78,9 +78,7 @@ class MongoAccountRepository(collection: MongoCollection[Account]) extends Accou
   }
 
   override def save(account: Account): Future[Account] = try {
-    for (_ <- collection.findOneAndReplace(Filters.equal("code", account.code), account, replaceOptions).headOption()) yield {
-      account
-    }
+    collection.findOneAndReplace(Filters.equal("code", account.code), account, replaceOptions).map(_ => account).head()
   } catch {
     case cause: Throwable => Future.failed(cause)
   }

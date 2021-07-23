@@ -37,7 +37,7 @@ class BasicManagerSpec extends ManagerSpec with StrictLogging {
         actor ! Manager.Authorize(Transaction(s"000000000000$i", 1, "0000", merchant), probe.ref)
 
         Future({
-          probe.expectMessageType[Approved](if (x < 10) 2.seconds else 100.millis)
+          probe.expectMessageType[Approved](if (x < 10) 5.seconds else 100.millis)
         })(ExecutionContext.global)
       }
 
