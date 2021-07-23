@@ -1,0 +1,17 @@
+version: '3.0'
+
+services:
+    mongo:
+        image: mongo:5.0.0
+        ports:
+            - "27017:27017"
+    authorizer  :
+        image: caju/rthoth-authorizer:1.0.0
+        ports:
+            - "9999:8080"
+        depends_on:
+            - mongo
+        environment:
+            CAJU_HTTP_PORT: 8080
+            CAJU_HTTP_HOSTNAME: 0.0.0.0
+            CAJU_MONGO_URI: mongodb://mongo:27017

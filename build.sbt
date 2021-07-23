@@ -38,6 +38,7 @@ lazy val root = (project in file("."))
     dockerEnvVars ++= Map(
       "CAJU_HTTP_HOSTNAME" -> "0.0.0.0",
       "CAJU_HTTP_PORT" -> "8888",
-      "CAJU_HTTP_TIMEOUT" -> "100"
+      "CAJU_HTTP_TIMEOUT" -> "100",
+      "CAJU_MONGO_URI" -> "mongodb://localhost"
     )
   )

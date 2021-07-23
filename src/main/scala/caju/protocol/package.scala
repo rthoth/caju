@@ -9,9 +9,11 @@ package object protocol {
 
   implicit val transactionApprovedFormat: RootJsonFormat[TransactionResponse] = jsonFormat1(TransactionResponse)
 
-  val ApprovedTranscation: TransactionResponse = TransactionResponse("00")
+  implicit val accountFormat: RootJsonFormat[Account] = jsonFormat5(Account.apply)
+
+  val ApprovedTransaction: TransactionResponse = TransactionResponse("00")
 
   val RejectedTransaction: TransactionResponse = TransactionResponse("51")
 
-  val FailedTranscation: TransactionResponse = TransactionResponse("07")
+  val FailedTransaction: TransactionResponse = TransactionResponse("07")
 }
