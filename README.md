@@ -93,7 +93,7 @@ A imagem [L4.png](L4.png) mostra uma máquina de estados desse *Ator*.
 
 Sobre representar os dados monetários como inteiros de centavos, sei que para esse tipo de dado a representação de ponto flutuante gera alguns probleminhas e usar alguma solução de precisão aribrária nesse caso não seria necessário, visto que é utilizada apenas uma operação de subtração e jogar o problema para representação com inteiros já é bem eficiente.
 
-Espero de alguma forma a explicação e código sejam interessantes.
+Espero que de alguma forma a explicação e código sejam interessantes.
 
 Novamente obrigado pela oportunidade.
 
