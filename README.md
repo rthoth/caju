@@ -4,17 +4,17 @@ Desafio backend
 
 O código fonte também está disponível na minha conta no github [caju](https://github.com/rthoth/caju), caso a visualização desse arquivo Markdown não sejá muito agradável sem alguma ferramenta para visualizá-lo.
 
-## Plataforma.
+## Plataforma
 
 O projeto foi escrito em Scala (2.13.6) usando como plataforma principal o Akka (2.6.8) e Akka Http (10.2.4). O banco de dados utilizado é o MongoDB (5.0.0).
 
-## Build.
+## Build
 
 Como um projeto Scala será necessário instalar o [sbt](https://www.scala-sbt.org/).
 
 **Aviso importante**: Nos testes automáticos eu utilizo uma lib [docker-it-scala](https://github.com/whisklabs/docker-it-scala) para levantar uma instância do MongoBD e assim o código é testado em vários momentos com um banco de dados real. Essa lib precisará que o seu usário possa utilizar o docker, nas distribuições Linux que já usei basta você adicionar o grupo docker ao seu usário aí não será necessário nenhum privilégio de super usuário para executar os testes.
 
-O projeto foi criado para gerar imagem docker com a aplicação, para gerar imagem local basta abrir o terminal do sbt e digitar:
+O projeto foi criado para gerar imagem docker com a aplicação, para gerar imagem local basta abrir o terminal do sbt dentro do projeto e digitar:
 
 ```
 docker:publishLocal
@@ -24,7 +24,7 @@ Será criada uma imagem docker `caju/rthoth-authorizer:1.0.0` ela que deverá se
 
 ## Execução
 
-Para facilitar um pouco o processo de testagem manual/automática você precisará instalar o [docker-compose](https://docs.docker.com/compose/), após isso só verificar que no projeto há um diretório `docker` onde está configurado um ambiente com uma instância da aplicação, uma instância MongoDB e uma ferramenta que costumo utilizar para fazer alguns testes mais simples de carga [Locust](http://locust.io).
+Para facilitar um pouco o processo de testagem manual/automática você precisará instalar o [docker-compose](https://docs.docker.com/compose/), após isso só verificar que no projeto há um diretório `docker` onde está configurado um ambiente com uma instância da aplicação, uma instância MongoDB e uma ferramenta ([Locust](http://locust.io)) que costumo utilizar para fazer alguns testes mais simples de carga.
 
 Para executar basta ir com o terminal nesse diretório e chamar o `docker-compose`:
 
@@ -61,7 +61,7 @@ Caso tenha curiosidade de ver o Locust ele estará em `http://localhost:8089`.
 
 
 
-## Sobre o teste L4 e a implementação.
+## Sobre o teste L4 e a implementação
 
 Primeiramente. Como estamos falando de operações financeiras, imagino que talvez algumas transações realizadas quase ao mesmo tempo sejam um indicativo de fraude. Não sei, foi a primeira coisa que me ocorreu. Feito o comentário, como escrevi o desafio em Akka optei por implementar um ideia para resolver o problema. A solução é basicamente implementar o processo de autorização de transações em duas etapas, na primeira um *Manager* é responsável por alocar um *Ator* temporário responsável por liberar as transações para uma conta, enquanto esse *Ator* estiver *vivo* os pedidos para aquela conta são direcionados para ele, aí utilizoo modelo de atores do Akka para garantir que as operações são feitas de forma não bloqueante sequencial para aquele cartão e paralelas em relação as operações em outros cartões.
 
