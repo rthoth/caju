@@ -12,6 +12,7 @@ import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, Indexes}
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.io.Source
+import scala.concurrent.ExecutionContext.Implicits._
 
 object Mongo extends ExtensionId[Mongo] {
 
@@ -77,7 +78,9 @@ class MongoAccountRepository(collection: MongoCollection[Account]) extends Accou
   }
 
   override def save(account: Account): Future[Account] = try {
-    collection.findOneAndReplace(Filters.equal("code", account.code), account, replaceOptions).map(_ => account).head()
+    for (_ <- collection.findOneAndReplace(Filters.equal("code", account.code), account, replaceOptions).headOption()) yield {
+      account
+    }
   } catch {
     case cause: Throwable => Future.failed(cause)
   }

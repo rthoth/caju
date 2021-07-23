@@ -15,3 +15,12 @@ services:
             CAJU_HTTP_PORT: 8080
             CAJU_HTTP_HOSTNAME: 0.0.0.0
             CAJU_MONGO_URI: mongodb://mongo:27017
+    locust:
+        image: locustio/locust:1.6.0
+        ports:
+            - "8089:8089"
+        depends_on:
+            - authorizer
+        volumes:
+        - ./locustfile.py:/mnt/locustfile.py
+        command: -f /mnt/locustfile.py --host http://authorizer:8080 -u 200 -r 2
