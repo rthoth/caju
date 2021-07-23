@@ -155,7 +155,7 @@ class Authorizer(
         execute(authorize, account, mcc)
 
       case MCCFailure(cause) =>
-        fail(authorize, cause, unstash(waitNextAuthorize()))
+        fail(authorize, cause, if (buffer.isEmpty) waitNextAuthorize() else unstash(execute(account)))
 
       case other: Authorize =>
         stash(other, shouldLog = true, Behaviors.same)
