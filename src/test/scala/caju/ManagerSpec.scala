@@ -15,7 +15,7 @@ class BasicManagerSpec extends ManagerSpec with StrictLogging {
 
   lazy val actor: ActorRef[Manager.Message] = {
     val authorizer = Authorizer(accountRepository, _, 1000, 100.millis)
-    val resolver = () => MCCResolver((_, _) => Future.successful(None))
+    val resolver = () => MCCResolver(merchantRepository)
 
     testKit.spawn(Manager(authorizer, resolver))
   }
@@ -31,7 +31,7 @@ class BasicManagerSpec extends ManagerSpec with StrictLogging {
   }
 
   "When a valid transaction" - {
-      "it should to do fine" in {
+    "it should to do fine" in {
       for (i <- 0 until 20) {
         wait(accountRepository.save(Account(s"000000000000$i", 5000, 5000, 5000, 15000)))
       }
@@ -43,17 +43,16 @@ class BasicManagerSpec extends ManagerSpec with StrictLogging {
       )
 
       logger.debug("Starting transactions...")
-      val futures = for (_ <- 0 until 100; merchant <- merchants; i <- 0 until 20) yield {
+      val futures = for (x <- 0 until 100; merchant <- merchants; i <- 0 until 20) yield {
         val probe = testKit.createTestProbe[Authorizer.Response]
         actor ! Manager.Authorize(Transaction(s"000000000000$i", 1, "0000", merchant), probe.ref)
 
         Future({
-          probe.expectMessageType[Approved](100.millis)
+          probe.expectMessageType[Approved](if (x < 10) 30.seconds else 100.millis)
         })(ExecutionContext.global)
       }
 
-      val approved = wait(Future.sequence(futures))
-
+      wait(Future.sequence(futures))
 
       for (i <- 0 until 20) {
         val Some(Account(_, meal, food, culture, cash)) = wait(accountRepository.get(s"000000000000$i"))

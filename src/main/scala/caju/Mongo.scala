@@ -1,6 +1,7 @@
 package caju
 
 import akka.actor.typed.{ActorSystem, Extension, ExtensionId}
+import com.typesafe.scalalogging.StrictLogging
 import org.bson.codecs.configuration.CodecRegistries.{fromProviders, fromRegistries}
 import org.mongodb.scala.MongoClient.DEFAULT_CODEC_REGISTRY
 import org.mongodb.scala._
@@ -43,7 +44,7 @@ class Mongo(uri: String) extends Extension {
 
 class MongoMerchantRepository(collection: MongoCollection[Merchant]) extends MerchantRepository {
 
-  Await.result(collection.createIndex(Indexes.text("name")).head(), Duration.Inf)
+  Await.result(collection.createIndex(Indexes.ascending("name")).head(), Duration.Inf)
 
   if (Await.result(collection.countDocuments().head(), Duration.Inf) == 0) {
     Await.result(collection.insertMany(
@@ -60,9 +61,9 @@ class MongoMerchantRepository(collection: MongoCollection[Merchant]) extends Mer
   }
 }
 
-class MongoAccountRepository(collection: MongoCollection[Account]) extends AccountRepository {
+class MongoAccountRepository(collection: MongoCollection[Account]) extends AccountRepository with StrictLogging {
 
-  collection.createIndex(Indexes.hashed("code"))
+  Await.result(collection.createIndex(Indexes.hashed("code")).head(), Duration.Inf)
 
   private val replaceOptions = new FindOneAndReplaceOptions().upsert(true)
 

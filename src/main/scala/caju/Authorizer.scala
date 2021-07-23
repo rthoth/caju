@@ -9,6 +9,8 @@ import scala.util.{Failure, Success}
 
 object Authorizer {
 
+  object Accepted
+
   private object NotFound extends Message
 
   /** Time To Die */
@@ -18,7 +20,7 @@ object Authorizer {
 
   final case class Approved(mcc: Int, transaction: Transaction) extends Response
 
-  final case class Authorize(mcc: Int, transaction: Transaction, replyTo: ActorRef[Response]) extends Message {
+  final case class Authorize(mcc: Int, transaction: Transaction, from: ActorRef[Accepted.type], replyTo: ActorRef[Response]) extends Message {
 
     def account: String = transaction.account
   }
@@ -36,6 +38,7 @@ object Authorizer {
   def apply(repository: AccountRepository, account: String, bufferLimit: Int, ttl: FiniteDuration): Behavior[Message] = Behaviors.withStash(bufferLimit) { buffer =>
     Behaviors.setup { ctx =>
       Behaviors.withTimers { timers =>
+        ctx.setLoggerName(s"caju.Authorizer($account)")
         new Authorizer(repository, account, ctx, buffer, timers, ttl).start()
       }
     }
@@ -61,15 +64,15 @@ class Authorizer(
   private var shouldToDie = false
 
   def start(): Behavior[Message] = {
-    ctx.log.debug("Starting authorizer for {}...", code)
+    ctx.log.debug("Started.")
     waitNextAuthorize()
   }
 
   private def execute(account: Account): Behavior[Message] = {
     stopTTL()
-
+    ctx.log.debug("Executing authorization...")
     Behaviors.receiveMessage {
-      case authorize@Authorize(mcc, transaction, replyTo) =>
+      case authorize@Authorize(mcc, transaction, _, replyTo) =>
         account.minus((transaction.totalAmount * 100).toInt, mcc) match {
           case Some(newAccount) =>
 
@@ -82,7 +85,7 @@ class Authorizer(
 
           case None =>
             replyTo ! Rejected(mcc, transaction)
-            log.info("Rejected: {} {} {} {}.", code, transaction.totalAmount, mcc, transaction.merchant)
+            log.info("Rejected: {} {} {}.", transaction.totalAmount, mcc, transaction.merchant)
             if (buffer.isEmpty)
               waitNextAuthorize()
             else
@@ -108,6 +111,10 @@ class Authorizer(
 
   @inline
   private def log = ctx.log
+
+  private def notifyFrom(authorize: Authorize): Unit = {
+    authorize.from ! Accepted
+  }
 
   private def reportRepositoryFailure(cause: Throwable): Behavior[Message] = Behaviors.receiveMessage {
     case authorize: Authorize =>
@@ -168,14 +175,15 @@ class Authorizer(
   }
 
   private def waitAccount(): Behavior[Message] = {
+    ctx.log.debug("Waiting account.")
     startTTL()
     Behaviors.receiveMessage {
       case authorize: Authorize =>
         ctx.log.debug("Stashing transaction.")
+        notifyFrom(authorize)
         stash(authorize, Behaviors.same)
 
       case AccountWrapper(account) =>
-        ctx.log.debug("Account arrived.")
         unstash(execute(account))
 
       case RepositoryFailure(cause) =>
@@ -194,6 +202,8 @@ class Authorizer(
     startTTL()
     Behaviors.receiveMessage {
       case authorize: Authorize =>
+        ctx.log.debug("New authorize process.")
+        notifyFrom(authorize)
         stash(authorize, fetchAccount())
 
       case TTD =>
@@ -201,16 +211,20 @@ class Authorizer(
     }
   }
 
-  private def waitUpdate(): Behavior[Message] = Behaviors.receiveMessage {
-    case UpdateSuccess(Authorize(mcc, transaction, replyTo)) =>
-      replyTo ! Approved(mcc, transaction)
-      log.info("Approved: {} {} {} {}.", code, transaction.totalAmount, mcc, transaction.merchant)
-      unstash(waitNextAuthorize())
+  private def waitUpdate(): Behavior[Message] = {
+    ctx.log.debug("Updating repository...")
+    Behaviors.receiveMessage {
+      case UpdateSuccess(Authorize(mcc, transaction, _, replyTo)) =>
+        replyTo ! Approved(mcc, transaction)
+        log.info("Approved: {} {} {}.", transaction.totalAmount, mcc, transaction.merchant)
+        unstash(waitNextAuthorize())
 
-    case UpdateFailure(cause, authorize) =>
-      fail(authorize, cause, unstash(waitNextAuthorize()))
+      case UpdateFailure(cause, authorize) =>
+        fail(authorize, cause, unstash(waitNextAuthorize()))
 
-    case authorize: Authorize =>
-      stash(authorize, Behaviors.same)
+      case authorize: Authorize =>
+        notifyFrom(authorize)
+        stash(authorize, Behaviors.same)
+    }
   }
 }
