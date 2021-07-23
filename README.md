@@ -81,7 +81,7 @@ A imagem [L4.png](L4.png) mostra uma máquina de estados desse *Ator*.
 
 **G**: Se ocorrer uma falha na atualização da conta será enviada a resposta que a transação falhou e o *Ator* será direcionado para o estado inicial, se houver pedidos na lista de espera eles serão processados.
 
-**H**: Se a atualização do banco foi bem sucessida será enviada a resposta indicando que a transação foi aprovada e o *Ator* voltará para o estado inicial, seguindo a mesma lógica de transição de **G**.
+**H**: Se a atualização do banco foi bem sucedida será enviada a resposta indicando que a transação foi aprovada e o *Ator* voltará para o estado inicial, seguindo a mesma lógica de transição de **G**.
 
 **I**: Se ocorrer uma falha na detecção do `mcc` será a enviada a resposta que a transação falhou e o estado será alterado para o inicial **A**, havendo solicitações pendentes eles serão processadas.
 
