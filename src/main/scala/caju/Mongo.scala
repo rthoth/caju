@@ -1,6 +1,7 @@
 package caju
 
 import akka.actor.typed.{ActorSystem, Extension, ExtensionId}
+import caju.Merchant.Query
 import com.typesafe.scalalogging.StrictLogging
 import org.bson.codecs.configuration.CodecRegistries.{fromProviders, fromRegistries}
 import org.mongodb.scala.MongoClient.DEFAULT_CODEC_REGISTRY
@@ -47,15 +48,17 @@ class MongoMerchantRepository(collection: MongoCollection[Merchant]) extends Mer
   Await.result(collection.createIndex(Indexes.ascending("name")).head(), Duration.Inf)
 
   if (Await.result(collection.countDocuments().head(), Duration.Inf) == 0) {
-    Await.result(collection.insertMany(
+    val result = Await.result(collection.insertMany(
       for (line <- Source.fromInputStream(getClass.getClassLoader.getResourceAsStream("merchants")).getLines().toSeq) yield {
         Merchant(line.substring(0, 25).trim, line.substring(25, 40).trim, line.substring(41, 45).toInt)
       }
     ).head(), Duration.Inf)
+
+    require(result.getInsertedIds.size() != 0)
   }
 
-  override def search(name: String, location: String): Future[Option[Int]] = try {
-    collection.find(Filters.equal("name", name)).map(_.mcc).headOption()
+  override def search(query: Query): Future[Option[Int]] = try {
+    collection.find(Filters.equal("name", query.name)).map(_.mcc).headOption()
   } catch {
     case cause: Throwable => Future.failed(cause)
   }
@@ -74,7 +77,7 @@ class MongoAccountRepository(collection: MongoCollection[Account]) extends Accou
   }
 
   override def save(account: Account): Future[Account] = try {
-    collection.findOneAndReplace(Filters.equal("code", account.code), account, replaceOptions).head()
+    collection.findOneAndReplace(Filters.equal("code", account.code), account, replaceOptions).map(_ => account).head()
   } catch {
     case cause: Throwable => Future.failed(cause)
   }

@@ -15,10 +15,11 @@ object App extends scala.App {
     val system = ctx.system
     val config = system.settings.config
 
-    val authorizer = Authorizer(Mongo(ctx.system).accountRepository, _, 100, 200.millis)
-    val resolver = () => MCCResolver(Mongo(ctx.system).merchantRepository)
+    val accountRepo = Mongo(ctx.system).accountRepository
+    val merchanRepo = Mongo(ctx.system).merchantRepository
+    val authorizer = Authorizer(accountRepo, merchanRepo, _, 100, 200.millis)
 
-    val manager = ctx.spawn(Manager(authorizer, resolver), "manager")
+    val manager = ctx.spawn(Manager(authorizer), "manager")
 
     val httpReplyTo = ctx.spawnAnonymous(Behaviors.receive[HttpService.Message] { (ctx, message) =>
       message match {

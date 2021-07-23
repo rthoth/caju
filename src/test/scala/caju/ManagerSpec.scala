@@ -14,26 +14,15 @@ abstract class ManagerSpec extends ScalaTestWithActorTestKit with MongoService w
 class BasicManagerSpec extends ManagerSpec with StrictLogging {
 
   lazy val actor: ActorRef[Manager.Message] = {
-    val authorizer = Authorizer(accountRepository, _, 1000, 100.millis)
-    val resolver = () => MCCResolver(merchantRepository)
+    val authorizer = Authorizer(accountRepo, merchantRepo, _, 1000, 100.millis)
 
-    testKit.spawn(Manager(authorizer, resolver))
-  }
-
-  "When a authorizer hit ttl" - {
-    "a manager should to remove it" ignore {
-      wait(accountRepository.save(Account("0001", 5000, 5000, 5000, 5000)))
-      val probe = createTestProbe[Authorizer.Response]
-      actor ! Manager.Authorize(Transaction("0001", 10, "5815", "PADARIA 3BROTHERS           SAO PAULO SP"), probe.ref)
-      probe.expectMessageType[Authorizer.Approved]
-      Thread.sleep(1000)
-    }
+    testKit.spawn(Manager(authorizer))
   }
 
   "When a valid transaction" - {
     "it should to do fine" in {
       for (i <- 0 until 20) {
-        wait(accountRepository.save(Account(s"000000000000$i", 5000, 5000, 5000, 15000)))
+        wait(accountRepo.save(Account(s"000000000000$i", 5000, 5000, 5000, 15000)))
       }
 
       val merchants = Seq(
@@ -48,14 +37,14 @@ class BasicManagerSpec extends ManagerSpec with StrictLogging {
         actor ! Manager.Authorize(Transaction(s"000000000000$i", 1, "0000", merchant), probe.ref)
 
         Future({
-          probe.expectMessageType[Approved](if (x < 10) 30.seconds else 100.millis)
+          probe.expectMessageType[Approved](if (x < 10) 2.seconds else 100.millis)
         })(ExecutionContext.global)
       }
 
       wait(Future.sequence(futures))
 
       for (i <- 0 until 20) {
-        val Some(Account(_, meal, food, culture, cash)) = wait(accountRepository.get(s"000000000000$i"))
+        val Some(Account(_, meal, food, culture, cash)) = wait(accountRepo.get(s"000000000000$i"))
         meal should be(0)
         food should be(0)
         culture should be(0)

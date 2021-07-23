@@ -10,18 +10,15 @@ object Manager {
 
   type AuthorizerFactory = String => Behavior[Authorizer.Message]
 
-  type ResolverFactory = () => Behavior[MCCResolver.Message]
-
   final case class Authorize(transaction: Transaction, replyTo: ActorRef[Authorizer.Response]) extends Message {
 
     def account: String = transaction.account
-
   }
 
   private case class RemoveAuthorizer(account: String) extends Message
 
-  def apply(factory: AuthorizerFactory, resolver: ResolverFactory): Behavior[Message] = Behaviors.setup { ctx =>
-    new Manager(factory, resolver, ctx).start()
+  def apply(factory: AuthorizerFactory): Behavior[Message] = Behaviors.setup { ctx =>
+    new Manager(factory, ctx).start()
   }
 
   sealed trait Message
@@ -29,7 +26,7 @@ object Manager {
 
 import caju.Manager._
 
-class Manager(authorizer: AuthorizerFactory, resolver: ResolverFactory, ctx: ActorContext[Message]) {
+class Manager(authorizer: AuthorizerFactory, ctx: ActorContext[Message]) {
 
   ctx.log.debug("Starting...")
 
@@ -48,10 +45,7 @@ class Manager(authorizer: AuthorizerFactory, resolver: ResolverFactory, ctx: Act
   }
 
   private def execute(authorize: Authorize): Unit = {
-    val resolver = ctx.spawnAnonymous(this.resolver(), DispatcherSelector.fromConfig("caju.dispatcher.resolver"))
-    val authorizer = getAuthorizer(authorize.account)
-
-    resolver ! MCCResolver.Resolve(authorize.transaction, authorizer, authorize.replyTo)
+    getAuthorizer(authorize.account) ! Authorizer.Authorize(authorize.transaction, authorize.replyTo)
   }
 
   private def getAuthorizer(account: String): ActorRef[Authorizer.Message] = {

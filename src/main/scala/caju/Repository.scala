@@ -1,5 +1,7 @@
 package caju
 
+import caju.Merchant.Query
+
 import scala.annotation.tailrec
 import scala.collection.immutable.HashMap
 import scala.concurrent.Future
@@ -65,11 +67,16 @@ case class Account(code: String, meal: Int, food: Int, culture: Int, cash: Int) 
   }
 }
 
+object Merchant {
+
+  case class Query(name: String, location: String)
+}
+
 case class Merchant(name: String, location: String, mcc: Int)
 
 trait MerchantRepository {
 
-  def search(name: String, location: String): Future[Option[Int]]
+  def search(query: Query): Future[Option[Int]]
 }
 
 trait AccountRepository {

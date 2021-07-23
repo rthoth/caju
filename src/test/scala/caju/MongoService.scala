@@ -5,6 +5,8 @@ import com.whisk.docker.scalatest.DockerTestKit
 import com.whisk.docker.{DockerContainer, DockerReadyChecker}
 import org.scalatest.Suite
 
+import scala.concurrent.Future
+
 trait MongoService extends DockerTestKit with DockerKitSpotify {
   self: Suite =>
 
@@ -16,9 +18,11 @@ trait MongoService extends DockerTestKit with DockerKitSpotify {
 
   lazy val mongo = new Mongo(s"mongodb://localhost:$mongoPort")
 
-  lazy val accountRepository: MongoAccountRepository = mongo.accountRepository
+  val NOPMerchantRepo: MerchantRepository = _ => Future.successful(None)
 
-  lazy val merchantRepository: MongoMerchantRepository = mongo.merchantRepository
+  lazy val accountRepo: MongoAccountRepository = mongo.accountRepository
+
+  lazy val merchantRepo: MongoMerchantRepository = mongo.merchantRepository
 
   abstract override def dockerContainers: List[DockerContainer] = mongoContainer :: super.dockerContainers
 
