@@ -2,24 +2,23 @@ package caju
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.scalalogging.Logger
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-object App extends scala.App with StrictLogging {
-
+object App extends scala.App {
 
   val system = Try(ActorSystem(Behaviors.setup[Any] { ctx =>
 
-    logger.info("Starting Caju Authorizer...")
+    ctx.log.debug("Starting Caju Authorizer...")
     val system = ctx.system
     val config = system.settings.config
 
-    val authorizer = CreditCard(Mongo(ctx.system).accountRepository, _, 100, 200.millis)
-    val resolver = ctx.spawn(MCCResolver.pool(Mongo(ctx.system).merchantRepository), "mcc-resolver")
+    val authorizer = Authorizer(Mongo(ctx.system).accountRepository, _, 100, 200.millis)
+    val resolver = () => MCCResolver(Mongo(ctx.system).merchantRepository)
 
-    val manager = ctx.spawn(CreditCardManager(authorizer, resolver), "credit-card-manager")
+    val manager = ctx.spawn(Manager(authorizer, resolver), "manager")
 
     val httpReplyTo = ctx.spawnAnonymous(Behaviors.receive[HttpService.Message] { (ctx, message) =>
       message match {
@@ -40,7 +39,7 @@ object App extends scala.App with StrictLogging {
 
   system match {
     case Failure(cause) =>
-      logger.error("\uD83D\uDD25 Actor System has failed!", cause)
+      Logger(getClass).error("\uD83D\uDD25 Actor System has failed!", cause)
 
     case _ =>
   }

@@ -43,7 +43,7 @@ class Mongo(uri: String) extends Extension {
 
 class MongoMerchantRepository(collection: MongoCollection[Merchant]) extends MerchantRepository {
 
-  collection.createIndex(Indexes.ascending("name", "location"))
+  Await.result(collection.createIndex(Indexes.text("name")).head(), Duration.Inf)
 
   if (Await.result(collection.countDocuments().head(), Duration.Inf) == 0) {
     Await.result(collection.insertMany(
@@ -53,8 +53,8 @@ class MongoMerchantRepository(collection: MongoCollection[Merchant]) extends Mer
     ).head(), Duration.Inf)
   }
 
-  override def search(name: String, location: String): Future[Option[Merchant]] = try {
-    collection.find(Filters.and(Filters.equal("name", name), Filters.equal("location", location))).headOption()
+  override def search(name: String, location: String): Future[Option[Int]] = try {
+    collection.find(Filters.equal("name", name)).map(_.mcc).headOption()
   } catch {
     case cause: Throwable => Future.failed(cause)
   }

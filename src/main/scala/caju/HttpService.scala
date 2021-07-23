@@ -8,8 +8,8 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives._
 import akka.util.Timeout
-import caju.CreditCard.{Approved, Failed, Rejected}
-import caju.CreditCardManager.Authorize
+import caju.Authorizer.{Approved, Failed, Rejected}
+import caju.Manager.Authorize
 import caju.protocol._
 
 import scala.concurrent.Future
@@ -23,7 +23,7 @@ object HttpService {
   def apply(
     hostname: String,
     port: Int,
-    manager: ActorRef[CreditCardManager.Message],
+    manager: ActorRef[Manager.Message],
     replyTo: ActorRef[Message]
   ): Behavior[Message] = Behaviors.setup { ctx =>
 
@@ -65,7 +65,7 @@ object HttpService {
 
     Behaviors.receiveMessage { status =>
       replyTo ! status
-      if (status.isSuccess) Behaviors.unhandled else Behaviors.stopped
+      if (status.isSuccess) Behaviors.same else Behaviors.stopped
     }
   }
 }

@@ -7,7 +7,7 @@ import caju.protocol.Transaction
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-object CreditCard {
+object Authorizer {
 
   private object NotFound extends Message
 
@@ -36,7 +36,7 @@ object CreditCard {
   def apply(repository: AccountRepository, account: String, bufferLimit: Int, ttl: FiniteDuration): Behavior[Message] = Behaviors.withStash(bufferLimit) { buffer =>
     Behaviors.setup { ctx =>
       Behaviors.withTimers { timers =>
-        new CreditCard(repository, account, ctx, buffer, timers, ttl).start()
+        new Authorizer(repository, account, ctx, buffer, timers, ttl).start()
       }
     }
   }
@@ -47,9 +47,9 @@ object CreditCard {
 
 }
 
-import caju.CreditCard._
+import caju.Authorizer._
 
-class CreditCard(
+class Authorizer(
   repository: AccountRepository,
   code: String,
   ctx: ActorContext[Message],
@@ -61,6 +61,7 @@ class CreditCard(
   private var shouldToDie = false
 
   def start(): Behavior[Message] = {
+    ctx.log.debug("Starting authorizer for {}...", code)
     waitNextAuthorize()
   }
 
@@ -96,7 +97,6 @@ class CreditCard(
   }
 
   private def fetchAccount(): Behavior[Message] = {
-    startTTL()
     ctx.pipeToSelf(repository.get(code)) {
       case Success(Some(account)) => AccountWrapper(account)
       case Success(_) => NotFound
@@ -141,18 +141,24 @@ class CreditCard(
 
   private def timeToDie(cause: Throwable): Behavior[Message] = {
     if (shouldToDie) {
-      unstash(Behaviors.receiveMessage {
-        case authorize: Authorize =>
-          fail(authorize, cause, if (buffer.nonEmpty)
-            unstash(Behaviors.same)
-          else
-            Behaviors.stopped
-          )
+      ctx.log.debug("I'm gonna die!")
+      if (buffer.nonEmpty) {
+        unstash(Behaviors.receiveMessage {
+          case authorize: Authorize =>
+            fail(authorize, cause, if (buffer.nonEmpty)
+              unstash(Behaviors.same)
+            else
+              Behaviors.stopped
+            )
 
-        case _ =>
-          Behaviors.same
-      })
+          case _ =>
+            Behaviors.same
+        })
+      } else {
+        Behaviors.stopped
+      }
     } else {
+      ctx.log.debug("I should to die, but it isn't my time!")
       Behaviors.same
     }
   }
@@ -161,21 +167,27 @@ class CreditCard(
     buffer.unstash(behavior, 1, identity)
   }
 
-  private def waitAccount(): Behavior[Message] = Behaviors.receiveMessage {
-    case authorize: Authorize =>
-      stash(authorize, Behaviors.same)
+  private def waitAccount(): Behavior[Message] = {
+    startTTL()
+    Behaviors.receiveMessage {
+      case authorize: Authorize =>
+        ctx.log.debug("Stashing transaction.")
+        stash(authorize, Behaviors.same)
 
-    case AccountWrapper(account) =>
-      unstash(execute(account))
+      case AccountWrapper(account) =>
+        ctx.log.debug("Account arrived.")
+        unstash(execute(account))
 
-    case RepositoryFailure(cause) =>
-      unstash(reportRepositoryFailure(cause))
+      case RepositoryFailure(cause) =>
+        ctx.log.error("Repository failed!", cause)
+        unstash(reportRepositoryFailure(cause))
 
-    case TTD =>
-      timeToDie(new CajuException.Timeout())
+      case TTD =>
+        timeToDie(new CajuException.Timeout())
 
-    case NotFound =>
-      timeToDie(new CajuException.NotFound(code))
+      case NotFound =>
+        timeToDie(new CajuException.NotFound(code))
+    }
   }
 
   private def waitNextAuthorize(): Behavior[Message] = {

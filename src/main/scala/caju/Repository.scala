@@ -69,7 +69,7 @@ case class Merchant(name: String, location: String, mcc: Int)
 
 trait MerchantRepository {
 
-  def search(name: String, location: String): Future[Option[Merchant]]
+  def search(name: String, location: String): Future[Option[Int]]
 }
 
 trait AccountRepository {
